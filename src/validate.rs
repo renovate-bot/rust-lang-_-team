@@ -1304,6 +1304,7 @@ fn validate_branch_protections(data: &Data, errors: &mut Vec<String>) {
                     || protection.dismiss_stale_review
                     || !protection.pr_required
                     || !protection.allowed_merge_teams.is_empty()
+                        && !protection.pattern.contains('*')
                 {
                     bail!(
                         r#"repo '{}' uses bors, but its branch protection for {} uses invalid
