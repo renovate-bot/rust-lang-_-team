@@ -92,12 +92,12 @@ prevent-force-push = false
 
 [[branch-protections]]
 pattern = "*"
-allowed-merge-apps = ["promote-release"]
+allowed-merge-apps = ["bors", "promote-release", "rust-timer"]
 prevent-update = true
 
 [[branch-protections]]
 pattern = "*/**/*"
-pr-required = false
+allowed-merge-apps = ["bors", "promote-release", "rust-timer"]
 prevent-update = true
 
 [[branch-protections]]
