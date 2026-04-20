@@ -210,6 +210,7 @@ pub enum Bot {
     Craterbot,
     Glacierbot,
     LogAnalyzer,
+    Datadog,
     Renovate,
     ForkingRenovate,
     HerokuDeployAccess,

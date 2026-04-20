@@ -47,6 +47,7 @@ enum GithubApp {
     RenovateBot,
     ForkingRenovateBot,
     Bors,
+    Datadog,
 }
 
 impl GithubApp {
@@ -57,6 +58,10 @@ impl GithubApp {
             2740 => Some(GithubApp::RenovateBot),
             7402 => Some(GithubApp::ForkingRenovateBot),
             278306 => Some(GithubApp::Bors),
+            // Link for infra admins:
+            // https://github.com/organizations/rust-lang/settings/apps/datadog-rust-lang
+            // TODO set the real value after updating triagebot: 3444461
+            1111111 => Some(GithubApp::Datadog),
             _ => None,
         }
     }
@@ -68,6 +73,7 @@ impl Display for GithubApp {
             GithubApp::ForkingRenovateBot => f.write_str("Forking RenovateBot"),
             GithubApp::RenovateBot => f.write_str("RenovateBot"),
             GithubApp::Bors => f.write_str("Bors"),
+            GithubApp::Datadog => f.write_str("Datadog"),
         }
     }
 }
@@ -964,6 +970,7 @@ impl SyncGitHub {
             Bot::Renovate => Some(GithubApp::RenovateBot),
             Bot::ForkingRenovate => Some(GithubApp::ForkingRenovateBot),
             Bot::Bors => Some(GithubApp::Bors),
+            Bot::Datadog => Some(GithubApp::Datadog),
             Bot::Highfive
             | Bot::Rfcbot
             | Bot::RustTimer
@@ -1135,7 +1142,7 @@ impl From<&Bot> for BotDetails {
             Bot::Craterbot => write_access("craterbot"),
             Bot::Glacierbot => write_access("rust-lang-glacier-bot"),
             Bot::LogAnalyzer => write_access("rust-log-analyzer"),
-            Bot::Renovate | Bot::ForkingRenovate => BotDetails::GitHubApp,
+            Bot::Datadog | Bot::Renovate | Bot::ForkingRenovate => BotDetails::GitHubApp,
             // Unfortunately linking to Heroku requires admin access, since the integration creates
             // GitHub webhooks, which require admin access.
             Bot::HerokuDeployAccess => admin_access("rust-heroku-deploy-access"),

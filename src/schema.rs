@@ -855,6 +855,7 @@ pub(crate) enum Bot {
     Craterbot,
     Glacierbot,
     LogAnalyzer,
+    Datadog,
     Renovate,
     ForkingRenovate,
     HerokuDeployAccess,

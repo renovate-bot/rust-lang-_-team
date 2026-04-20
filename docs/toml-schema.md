@@ -350,6 +350,17 @@ bots = ["bors", "rustbot", "rust-timer"]
 private-non-synced = false
 ```
 
+#### Bots
+
+Here are the available bots that can be added to the `bots` array:
+- `datadog`: installs a GitHub App used by DataDog. Used for [CI Visibility](https://www.datadoghq.com/product/ci-cd-monitoring/). It has read access to organization members, and repository
+  actions, administration, checks, code scanning alerts, commit statuses, contents,
+  deployments, issues, pull requests, secret scanning alerts and secrets.
+  It only works on `rust-lang` org repositories. If you need this for other repositories,
+  ask in [`#t-infra`](https://rust-lang.zulipchat.com/#narrow/channel/242791-t-infra) on Zulip.
+- `renovate`, `forking-renovate`: See the [Renovate Forge docs](https://forge.rust-lang.org/infra/docs/renovate.html).
+- TODO: Document other bots.
+
 ### Repository access
 
 Access to a repository is given on a per-team basis. Teams who are responsible for a repository may give access to other teams at their discretion.
@@ -432,7 +443,7 @@ dismiss-stale-review = false
 # (optional - default `false`)
 require-conversation-resolution = false
 # Prevent merge commits from being pushed to matching branches.
-# When this option is set, one cannot use `merge` as merging method 
+# When this option is set, one cannot use `merge` as merging method
 # for a Merge Queue. Use squash or rebase instead.
 # (optional - default `false`)
 require-linear-history = false

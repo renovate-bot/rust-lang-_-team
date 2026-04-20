@@ -119,6 +119,7 @@ impl<'a> Generator<'a> {
                         Bot::Craterbot => v1::Bot::Craterbot,
                         Bot::Glacierbot => v1::Bot::Glacierbot,
                         Bot::LogAnalyzer => v1::Bot::LogAnalyzer,
+                        Bot::Datadog => v1::Bot::Datadog,
                         Bot::Renovate => v1::Bot::Renovate,
                         Bot::ForkingRenovate => v1::Bot::ForkingRenovate,
                         Bot::HerokuDeployAccess => v1::Bot::HerokuDeployAccess,
