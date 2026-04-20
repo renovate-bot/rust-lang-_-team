@@ -35,17 +35,10 @@ jobs:
           fetch-depth: 50
           persist-credentials: false
 
-      - name: Install Rust Stable
-        env:
-          RUST_VERSION: "1.95.0"
-        run: |
-          rustc -vV
-          rustup toolchain install $RUST_VERSION
-          rustup default $RUST_VERSION
-          rustup component add rustfmt clippy
-          rustc -vV
-
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt clippy
 
       - name: Build the team binary
         run: RUSTFLAGS="--deny warnings" cargo build

@@ -14,7 +14,7 @@
     {
       customType: "regex",
       managerFilePatterns: [
-        '/^\\.github/workflows/main\\.yml$/',
+        '/^\\.github/actions/setup-rust/action\\.yml$/',
       ],
       matchStrings: [
         "RUST_VERSION:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
