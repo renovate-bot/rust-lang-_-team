@@ -4,9 +4,8 @@ use std::collections::HashSet;
 
 use crate::sync::github::api::url::GitHubUrl;
 use crate::sync::github::api::{
-    AppPushAllowanceActor, BranchProtection, BranchProtectionOp, GitHubApiRead, GithubRead,
-    HttpClient, Login, PushAllowanceActor, Repo, RepoPermission, RepoSettings, Ruleset, RulesetOp,
-    Team, TeamPrivacy, TeamPushAllowanceActor, TeamRole, UserPushAllowanceActor, allow_not_found,
+    GitHubApiRead, GithubRead, HttpClient, Repo, RepoPermission, RepoSettings, Ruleset, RulesetOp,
+    Team, TeamPrivacy, TeamRole, allow_not_found,
 };
 use crate::sync::utils::ResponseExt;
 
@@ -21,66 +20,6 @@ impl GitHubWrite {
             client: client.clone(),
             dry_run,
         })
-    }
-
-    async fn user_id(&self, name: &str, org: &str) -> anyhow::Result<String> {
-        #[derive(serde::Serialize)]
-        struct Params<'a> {
-            name: &'a str,
-        }
-        let query = "
-            query($name: String!) {
-                user(login: $name) {
-                    id
-                }
-            }
-        ";
-        #[derive(serde::Deserialize)]
-        struct Data {
-            user: User,
-        }
-        #[derive(serde::Deserialize)]
-        struct User {
-            id: String,
-        }
-
-        let data: Data = self.client.graphql(query, Params { name }, org).await?;
-        Ok(data.user.id)
-    }
-
-    async fn team_id(&self, org: &str, name: &str) -> anyhow::Result<String> {
-        #[derive(serde::Serialize)]
-        struct Params<'a> {
-            org: &'a str,
-            team: &'a str,
-        }
-        let query = "
-            query($org: String!, $team: String!) {
-                organization(login: $org) {
-                    team(slug: $team) {
-                        id
-                    }
-                }
-            }
-        ";
-        #[derive(serde::Deserialize)]
-        struct Data {
-            organization: Organization,
-        }
-        #[derive(serde::Deserialize)]
-        struct Organization {
-            team: Team,
-        }
-        #[derive(serde::Deserialize)]
-        struct Team {
-            id: String,
-        }
-
-        let data: Data = self
-            .client
-            .graphql(query, Params { org, team: name }, org)
-            .await?;
-        Ok(data.organization.team.id)
     }
 
     /// Create a team in a org
@@ -244,7 +183,6 @@ impl GitHubWrite {
         debug!("Creating the repo {org}/{name} with {req:?}");
         if self.dry_run {
             Ok(Repo {
-                node_id: String::from("ID"),
                 repo_id: 0,
                 name: name.to_string(),
                 org: org.to_string(),
@@ -442,115 +380,6 @@ impl GitHubWrite {
             let url = &GitHubUrl::repos(org, repo, &format!("collaborators/{collaborator}"))?;
             let resp = self.client.req(method.clone(), url)?.send().await?;
             allow_not_found(resp, method, url.url()).await?;
-        }
-        Ok(())
-    }
-
-    /// Create or update a branch protection.
-    pub(crate) async fn upsert_branch_protection(
-        &self,
-        op: BranchProtectionOp,
-        pattern: &str,
-        branch_protection: &BranchProtection,
-        org: &str,
-    ) -> anyhow::Result<()> {
-        debug!("Updating '{pattern}' branch protection");
-        #[derive(Debug, serde::Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Params<'a> {
-            id: &'a str,
-            pattern: &'a str,
-            contexts: &'a [String],
-            allows_force_pushes: bool,
-            dismiss_stale: bool,
-            requires_conversation_resolution: bool,
-            requires_linear_history: bool,
-            requires_strict_status_checks: bool,
-            review_count: u8,
-            restricts_pushes: bool,
-            // Is a PR required to push into this branch?
-            requires_approving_reviews: bool,
-            push_actor_ids: &'a [String],
-        }
-        let mutation_name = match op {
-            BranchProtectionOp::CreateForRepo(_) => "createBranchProtectionRule",
-            BranchProtectionOp::UpdateBranchProtection(_) => "updateBranchProtectionRule",
-        };
-        let id_field = match op {
-            BranchProtectionOp::CreateForRepo(_) => "repositoryId",
-            BranchProtectionOp::UpdateBranchProtection(_) => "branchProtectionRuleId",
-        };
-        let id = &match op {
-            BranchProtectionOp::CreateForRepo(id) => id,
-            BranchProtectionOp::UpdateBranchProtection(id) => id,
-        };
-        let query = format!("
-        mutation($id: ID!, $pattern:String!, $contexts: [String!], $allowsForcePushes: Boolean, $dismissStale: Boolean, $requiresConversationResolution: Boolean, $requiresLinearHistory: Boolean, $requiresStrictStatusChecks: Boolean, $reviewCount: Int, $pushActorIds: [ID!], $restrictsPushes: Boolean, $requiresApprovingReviews: Boolean) {{
-            {mutation_name}(input: {{
-                {id_field}: $id,
-                pattern: $pattern,
-                requiresStatusChecks: true,
-                requiredStatusCheckContexts: $contexts,
-                requiresStrictStatusChecks: $requiresStrictStatusChecks,
-                isAdminEnforced: true,
-                allowsForcePushes: $allowsForcePushes,
-                requiredApprovingReviewCount: $reviewCount,
-                dismissesStaleReviews: $dismissStale,
-                requiresConversationResolution: $requiresConversationResolution,
-                requiresLinearHistory: $requiresLinearHistory,
-                requiresApprovingReviews: $requiresApprovingReviews,
-                restrictsPushes: $restrictsPushes,
-                pushActorIds: $pushActorIds
-            }}) {{
-              branchProtectionRule {{
-                id
-              }}
-            }}
-          }}
-        ");
-        let mut push_actor_ids = vec![];
-        for actor in &branch_protection.push_allowances {
-            match actor {
-                PushAllowanceActor::User(UserPushAllowanceActor { login: name }) => {
-                    push_actor_ids.push(self.user_id(name, org).await?);
-                }
-                PushAllowanceActor::Team(TeamPushAllowanceActor {
-                    organization: Login { login: org },
-                    name,
-                }) => push_actor_ids.push(self.team_id(org, name).await?),
-                PushAllowanceActor::App(AppPushAllowanceActor { id, .. }) => {
-                    push_actor_ids.push(id.clone())
-                }
-            }
-        }
-
-        if !self.dry_run {
-            let _: serde_json::Value = self
-                .client
-                .graphql(
-                    &query,
-                    Params {
-                        id,
-                        pattern,
-                        contexts: &branch_protection.required_status_check_contexts,
-                        allows_force_pushes: branch_protection.allows_force_pushes,
-                        dismiss_stale: branch_protection.dismisses_stale_reviews,
-                        requires_conversation_resolution: branch_protection
-                            .requires_conversation_resolution,
-                        requires_linear_history: branch_protection.requires_linear_history,
-                        requires_strict_status_checks: branch_protection
-                            .requires_strict_status_checks,
-                        review_count: branch_protection.required_approving_review_count,
-                        // We restrict merges, if we have explicitly set some actors to be
-                        // able to merge (i.e., we allow allow those with write permissions
-                        // to merge *or* we only allow those in `push_actor_ids`)
-                        restricts_pushes: !push_actor_ids.is_empty(),
-                        push_actor_ids: &push_actor_ids,
-                        requires_approving_reviews: branch_protection.requires_approving_reviews,
-                    },
-                    org,
-                )
-                .await?;
         }
         Ok(())
     }

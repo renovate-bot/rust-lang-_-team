@@ -216,7 +216,6 @@ async fn repo_change_description() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -257,7 +256,6 @@ async fn repo_change_homepage() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -333,7 +331,6 @@ async fn repo_create() {
                         ),
                     },
                 ],
-                branch_protections: [],
                 rulesets: [
                     Ruleset {
                         id: None,
@@ -411,7 +408,6 @@ async fn repo_add_member() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -467,7 +463,6 @@ async fn repo_change_member_permissions() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -519,7 +514,6 @@ async fn repo_remove_member() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -572,7 +566,6 @@ async fn repo_add_team() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -623,7 +616,6 @@ async fn repo_change_team_permissions() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -675,7 +667,6 @@ async fn repo_remove_team() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -726,7 +717,6 @@ async fn repo_archive_repo() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -771,7 +761,6 @@ async fn repo_add_branch_protection() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -922,7 +911,6 @@ async fn repo_update_branch_protection() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -1078,7 +1066,6 @@ async fn repo_remove_branch_protection() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -1214,7 +1201,6 @@ async fn repo_environment_create() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -1275,7 +1261,6 @@ async fn repo_environment_delete() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -1343,7 +1328,6 @@ async fn repo_environment_update() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {
@@ -1405,7 +1389,6 @@ async fn repo_environment_update_branches() {
             UpdateRepoDiff {
                 org: "rust-lang",
                 name: "repo1",
-                repo_node_id: "0",
                 repo_id: 0,
                 settings_diff: (
                     RepoSettings {

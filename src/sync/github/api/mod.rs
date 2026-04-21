@@ -377,7 +377,6 @@ pub(crate) struct RepoAppInstallation {
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub(crate) struct Repo {
-    pub(crate) node_id: String,
     #[serde(rename = "id")]
     pub(crate) repo_id: u64,
     pub(crate) name: String,
@@ -528,11 +527,6 @@ pub(crate) struct AppPushAllowanceActor {
     pub(crate) name: String,
     /// Node ID, which can be used as a push actor ID
     pub(crate) id: String,
-}
-
-pub(crate) enum BranchProtectionOp {
-    CreateForRepo(String),
-    UpdateBranchProtection(String),
 }
 
 #[derive(PartialEq, Debug)]

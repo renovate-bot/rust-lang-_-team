@@ -2,17 +2,15 @@ mod api;
 #[cfg(test)]
 mod tests;
 
-use self::api::{BranchProtectionOp, TeamPrivacy, TeamRole};
 pub(crate) use self::api::{GitHubApiRead, GitHubWrite, HttpClient};
+use self::api::{TeamPrivacy, TeamRole};
 use crate::schema;
 use crate::sync::Config;
-use crate::sync::github::api::{
-    GithubRead, Login, PushAllowanceActor, RepoPermission, RepoSettings, Ruleset,
-};
+use crate::sync::github::api::{GithubRead, RepoPermission, RepoSettings, Ruleset};
 use anyhow::Context as _;
 use futures_util::StreamExt;
 use log::debug;
-use rust_team_data::v1::{Bot, BranchProtectionMode, MergeBot, ProtectionTarget};
+use rust_team_data::v1::{Bot, BranchProtectionMode, ProtectionTarget};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt::{Display, Formatter, Write};
 
@@ -447,12 +445,6 @@ impl SyncGitHub {
         Ok(diffs)
     }
 
-    /// Check if a repository should use rulesets instead of branch protections
-    fn should_use_rulesets(&self, _repo: &rust_team_data::v1::Repo) -> bool {
-        // TODO delete this function in the future since we don't need it anymore
-        true
-    }
-
     async fn construct_ruleset(
         &self,
         expected_repo: &rust_team_data::v1::Repo,
@@ -547,23 +539,12 @@ impl SyncGitHub {
                     Default::default(),
                 )?;
 
-                let mut branch_protections = Vec::new();
-                for branch_protection in &expected_repo.branch_protections {
-                    branch_protections.push((
-                        branch_protection.pattern.clone(),
-                        construct_branch_protection(expected_repo, branch_protection),
-                    ));
-                }
-
                 let mut rulesets = Vec::new();
-                let use_rulesets = self.should_use_rulesets(expected_repo);
-                if use_rulesets {
-                    for branch_protection in &expected_repo.branch_protections {
-                        let ruleset = self
-                            .construct_ruleset(expected_repo, branch_protection)
-                            .await?;
-                        rulesets.push(ruleset);
-                    }
+                for branch_protection in &expected_repo.branch_protections {
+                    let ruleset = self
+                        .construct_ruleset(expected_repo, branch_protection)
+                        .await?;
+                    rulesets.push(ruleset);
                 }
 
                 return Ok(RepoDiff::Create(CreateRepoDiff {
@@ -576,12 +557,6 @@ impl SyncGitHub {
                         auto_merge_enabled: expected_repo.auto_merge_enabled,
                     },
                     permissions,
-                    // Don't create branch protections if using rulesets
-                    branch_protections: if use_rulesets {
-                        vec![]
-                    } else {
-                        branch_protections
-                    },
                     rulesets,
                     environments: expected_repo
                         .environments
@@ -603,15 +578,9 @@ impl SyncGitHub {
 
         let permission_diffs = self.diff_permissions(expected_repo).await?;
 
-        let branch_protection_diffs = self
-            .diff_branch_protections(&actual_repo, expected_repo)
-            .await?;
+        let branch_protection_diffs = self.diff_branch_protections(&actual_repo).await?;
 
-        let ruleset_diffs = if self.should_use_rulesets(expected_repo) {
-            self.diff_rulesets(expected_repo).await?
-        } else {
-            Vec::new()
-        };
+        let ruleset_diffs = self.diff_rulesets(expected_repo).await?;
 
         let environment_diffs = self.diff_environments(expected_repo).await?;
         let old_settings = RepoSettings {
@@ -652,7 +621,6 @@ impl SyncGitHub {
         Ok(RepoDiff::Update(UpdateRepoDiff {
             org: expected_repo.org.clone(),
             name: actual_repo.name,
-            repo_node_id: actual_repo.node_id,
             repo_id: actual_repo.repo_id,
             settings_diff: (old_settings, new_settings),
             permission_diffs,
@@ -685,10 +653,11 @@ impl SyncGitHub {
         calculate_permission_diffs(expected_repo, actual_teams, actual_collaborators)
     }
 
+    /// We use Rulesets instead of branch protections, so the diff consists only on deletions.
+    /// This is useful to detect (and later delete) branch protections that were created manually.
     async fn diff_branch_protections(
         &self,
         actual_repo: &api::Repo,
-        expected_repo: &rust_team_data::v1::Repo,
     ) -> anyhow::Result<Vec<BranchProtectionDiff>> {
         // The rust-lang/rust repository uses GitHub apps push allowance actors for its branch
         // protections, which cannot be read without a PAT.
@@ -697,73 +666,18 @@ impl SyncGitHub {
             return Ok(vec![]);
         }
 
-        let mut branch_protection_diffs = Vec::new();
-        let mut actual_protections = self
+        let actual_protections = self
             .github
             .branch_protections(&actual_repo.org, &actual_repo.name)
             .await?;
 
-        // If rulesets are enabled, delete all existing branch protections
-        // to avoid conflicts between branch protections and rulesets
-        if self.should_use_rulesets(expected_repo) {
-            return Ok(actual_protections
-                .into_iter()
-                .map(|(name, (id, _))| BranchProtectionDiff {
-                    pattern: name,
-                    operation: BranchProtectionDiffOperation::Delete(id),
-                })
-                .collect());
-        }
-        for branch_protection in &expected_repo.branch_protections {
-            let actual_branch_protection = actual_protections.remove(&branch_protection.pattern);
-            let mut expected_branch_protection =
-                construct_branch_protection(expected_repo, branch_protection);
-
-            // We don't model GitHub App push allowance actors in team.
-            // However, we don't want to remove existing accesses of GH apps to
-            // branches.
-            // So if there is an existing branch protection, we copy its GitHub app
-            // push allowances into the expected branch protection, to roundtrip the app access.
-            if let Some((_, actual_branch_protection)) = &actual_branch_protection {
-                expected_branch_protection.push_allowances.extend(
-                    actual_branch_protection
-                        .push_allowances
-                        .iter()
-                        .filter(|allowance| matches!(allowance, PushAllowanceActor::App(_)))
-                        .cloned(),
-                );
-            }
-
-            let operation = {
-                match actual_branch_protection {
-                    Some((database_id, bp)) if bp != expected_branch_protection => {
-                        BranchProtectionDiffOperation::Update(
-                            database_id,
-                            bp,
-                            expected_branch_protection,
-                        )
-                    }
-                    None => BranchProtectionDiffOperation::Create(expected_branch_protection),
-                    // The branch protection doesn't need to change
-                    Some(_) => continue,
-                }
-            };
-            branch_protection_diffs.push(BranchProtectionDiff {
-                pattern: branch_protection.pattern.clone(),
-                operation,
-            });
-        }
-
-        // `actual_branch_protections` now contains the branch protections that were not expected
-        // but are still on GitHub. We want to delete them.
-        branch_protection_diffs.extend(actual_protections.into_iter().map(|(name, (id, _))| {
-            BranchProtectionDiff {
+        Ok(actual_protections
+            .into_iter()
+            .map(|(name, (id, _))| BranchProtectionDiff {
                 pattern: name,
                 operation: BranchProtectionDiffOperation::Delete(id),
-            }
-        }));
-
-        Ok(branch_protection_diffs)
+            })
+            .collect())
     }
 
     async fn diff_environments(
@@ -1159,92 +1073,6 @@ pub fn convert_permission(p: &rust_team_data::v1::RepoPermission) -> RepoPermiss
     }
 }
 
-fn get_branch_protection_mode(
-    branch_protection: &rust_team_data::v1::BranchProtection,
-) -> BranchProtectionMode {
-    let is_managed_by_bors = branch_protection
-        .allowed_merge_apps
-        .contains(&MergeBot::Bors);
-    // When bors manages a branch, we should not require a PR nor approvals
-    // for that branch, because it will (force) push to these branches directly.
-    if is_managed_by_bors {
-        BranchProtectionMode::PrNotRequired
-    } else {
-        branch_protection.mode.clone()
-    }
-}
-
-pub fn construct_branch_protection(
-    expected_repo: &rust_team_data::v1::Repo,
-    branch_protection: &rust_team_data::v1::BranchProtection,
-) -> api::BranchProtection {
-    let branch_protection_mode = get_branch_protection_mode(branch_protection);
-
-    let required_approving_review_count: u8 = match branch_protection_mode {
-        BranchProtectionMode::PrRequired {
-            required_approvals, ..
-        } => required_approvals
-            .try_into()
-            .expect("Too large required approval count"),
-        BranchProtectionMode::PrNotRequired => 0,
-    };
-    let mut push_allowances: Vec<PushAllowanceActor> = branch_protection
-        .allowed_merge_teams
-        .iter()
-        .map(|team| {
-            api::PushAllowanceActor::Team(api::TeamPushAllowanceActor {
-                organization: Login {
-                    login: expected_repo.org.clone(),
-                },
-                name: team.to_string(),
-            })
-        })
-        .collect();
-
-    for merge_bot in &branch_protection.allowed_merge_apps {
-        let allowance = match merge_bot {
-            MergeBot::Homu => PushAllowanceActor::User(api::UserPushAllowanceActor {
-                login: "bors".to_owned(),
-            }),
-            MergeBot::RustTimer => PushAllowanceActor::User(api::UserPushAllowanceActor {
-                login: "rust-timer".to_owned(),
-            }),
-            MergeBot::Bors | MergeBot::WorkflowsCratesIo | MergeBot::PromoteRelease => {
-                // These use GitHub apps, which are not configured through team (set manually).
-                // Their push allowance will be roundtripped by sync-team.
-                continue;
-            }
-        };
-        push_allowances.push(allowance);
-    }
-
-    let mut checks = match &branch_protection_mode {
-        BranchProtectionMode::PrRequired { ci_checks, .. } => ci_checks.clone(),
-        BranchProtectionMode::PrNotRequired => {
-            vec![]
-        }
-    };
-    // Normalize check order to avoid diffs based only on the ordering difference
-    checks.sort();
-
-    api::BranchProtection {
-        pattern: branch_protection.pattern.clone(),
-        is_admin_enforced: true,
-        allows_force_pushes: !branch_protection.prevent_force_push,
-        dismisses_stale_reviews: branch_protection.dismiss_stale_review,
-        requires_conversation_resolution: branch_protection.require_conversation_resolution,
-        requires_linear_history: branch_protection.require_linear_history,
-        requires_strict_status_checks: branch_protection.require_up_to_date_branches,
-        required_approving_review_count,
-        required_status_check_contexts: checks,
-        push_allowances,
-        requires_approving_reviews: matches!(
-            branch_protection_mode,
-            BranchProtectionMode::PrRequired { .. }
-        ),
-    }
-}
-
 /// Convert a branch or tag pattern to a full ref pattern for use in rulesets.
 /// GitHub rulesets require full ref paths like "refs/heads/main" and "refs/tags/0.*".
 pub(crate) fn convert_pattern_to_ref_pattern(target: ProtectionTarget, pattern: &str) -> String {
@@ -1513,7 +1341,6 @@ struct CreateRepoDiff {
     name: String,
     settings: RepoSettings,
     permissions: Vec<RepoPermissionAssignmentDiff>,
-    branch_protections: Vec<(String, api::BranchProtection)>,
     rulesets: Vec<api::Ruleset>,
     environments: Vec<(String, rust_team_data::v1::Environment)>,
     app_installations: Vec<AppInstallationDiff>,
@@ -1529,17 +1356,7 @@ impl CreateRepoDiff {
             permission.apply(sync, &self.org, &self.name).await?;
         }
 
-        // Apply branch protections
-        for (branch, protection) in &self.branch_protections {
-            BranchProtectionDiff {
-                pattern: branch.clone(),
-                operation: BranchProtectionDiffOperation::Create(protection.clone()),
-            }
-            .apply(sync, &self.org, &self.name, &repo.node_id)
-            .await?;
-        }
-
-        // Apply rulesets (in addition to branch protections if configured)
+        // Apply rulesets for all configured branch protection policies.
         for ruleset in &self.rulesets {
             RulesetDiff {
                 name: ruleset.name.clone(),
@@ -1569,7 +1386,6 @@ impl std::fmt::Display for CreateRepoDiff {
             name,
             settings,
             permissions,
-            branch_protections,
             rulesets,
             environments,
             app_installations,
@@ -1591,14 +1407,6 @@ impl std::fmt::Display for CreateRepoDiff {
         writeln!(f, "  Permissions:")?;
         for diff in permissions {
             write!(f, "{diff}")?;
-        }
-
-        if !branch_protections.is_empty() {
-            writeln!(f, "  Branch Protections:")?;
-            for (branch_name, branch_protection) in branch_protections {
-                writeln!(&mut f, "    {branch_name}")?;
-                log_branch_protection(branch_protection, None, &mut f)?;
-            }
         }
 
         if !rulesets.is_empty() {
@@ -1635,7 +1443,6 @@ impl std::fmt::Display for CreateRepoDiff {
 struct UpdateRepoDiff {
     org: String,
     name: String,
-    repo_node_id: String,
     repo_id: u64,
     // old, new
     settings_diff: (RepoSettings, RepoSettings),
@@ -1670,7 +1477,6 @@ impl UpdateRepoDiff {
         let UpdateRepoDiff {
             org: _,
             name: _,
-            repo_node_id: _,
             repo_id: _,
             settings_diff,
             permission_diffs,
@@ -1719,9 +1525,7 @@ impl UpdateRepoDiff {
         }
 
         for branch_protection in &self.branch_protection_diffs {
-            branch_protection
-                .apply(sync, &self.org, &self.name, &self.repo_node_id)
-                .await?;
+            branch_protection.apply(sync, &self.org, &self.name).await?;
         }
 
         for ruleset in &self.ruleset_diffs {
@@ -1773,7 +1577,6 @@ impl std::fmt::Display for UpdateRepoDiff {
         let UpdateRepoDiff {
             org,
             name,
-            repo_node_id: _,
             repo_id: _,
             settings_diff,
             permission_diffs,
@@ -1976,32 +1779,8 @@ struct BranchProtectionDiff {
 }
 
 impl BranchProtectionDiff {
-    async fn apply(
-        &self,
-        sync: &GitHubWrite,
-        org: &str,
-        repo_name: &str,
-        repo_id: &str,
-    ) -> anyhow::Result<()> {
+    async fn apply(&self, sync: &GitHubWrite, org: &str, repo_name: &str) -> anyhow::Result<()> {
         match &self.operation {
-            BranchProtectionDiffOperation::Create(bp) => {
-                sync.upsert_branch_protection(
-                    BranchProtectionOp::CreateForRepo(repo_id.to_string()),
-                    &self.pattern,
-                    bp,
-                    org,
-                )
-                .await?;
-            }
-            BranchProtectionDiffOperation::Update(id, _, bp) => {
-                sync.upsert_branch_protection(
-                    BranchProtectionOp::UpdateBranchProtection(id.clone()),
-                    &self.pattern,
-                    bp,
-                    org,
-                )
-                .await?;
-            }
             BranchProtectionDiffOperation::Delete(id) => {
                 debug!(
                     "Deleting branch protection '{}' on '{}/{}' as \
@@ -2020,10 +1799,6 @@ impl std::fmt::Display for BranchProtectionDiff {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "      {}", self.pattern)?;
         match &self.operation {
-            BranchProtectionDiffOperation::Create(bp) => log_branch_protection(bp, None, f),
-            BranchProtectionDiffOperation::Update(_, old, new) => {
-                log_branch_protection(old, Some(new), f)
-            }
             BranchProtectionDiffOperation::Delete(_) => {
                 writeln!(f, "        Deleting branch protection")
             }
@@ -2066,68 +1841,6 @@ fn log_field_if_not_default<T: PartialEq + std::fmt::Debug + Default>(
             }
         }
     }
-    Ok(())
-}
-
-fn log_branch_protection(
-    current: &api::BranchProtection,
-    new: Option<&api::BranchProtection>,
-    mut result: impl Write,
-) -> std::fmt::Result {
-    log_field(
-        "Require branches to be up to date",
-        &current.requires_strict_status_checks,
-        new.map(|n| &n.requires_strict_status_checks),
-        &mut result,
-    )?;
-    log_field(
-        "Dismiss Stale Reviews",
-        &current.dismisses_stale_reviews,
-        new.map(|n| &n.dismisses_stale_reviews),
-        &mut result,
-    )?;
-    log_field(
-        "Require conversation resolution",
-        &current.requires_conversation_resolution,
-        new.map(|n| &n.requires_conversation_resolution),
-        &mut result,
-    )?;
-    log_field(
-        "Require linear history",
-        &current.requires_linear_history,
-        new.map(|n| &n.requires_linear_history),
-        &mut result,
-    )?;
-    log_field(
-        "Is admin enforced",
-        &current.is_admin_enforced,
-        new.map(|n| &n.is_admin_enforced),
-        &mut result,
-    )?;
-    log_field(
-        "Required Approving Review Count",
-        &current.required_approving_review_count,
-        new.map(|n| &n.required_approving_review_count),
-        &mut result,
-    )?;
-    log_field(
-        "Requires PR",
-        &current.requires_approving_reviews,
-        new.map(|n| &n.requires_approving_reviews),
-        &mut result,
-    )?;
-    log_field(
-        "Required Checks",
-        &current.required_status_check_contexts,
-        new.map(|n| &n.required_status_check_contexts),
-        &mut result,
-    )?;
-    log_field(
-        "Allowances",
-        &current.push_allowances,
-        new.map(|n| &n.push_allowances),
-        &mut result,
-    )?;
     Ok(())
 }
 
@@ -2525,8 +2238,6 @@ fn log_ruleset(
 
 #[derive(Debug)]
 enum BranchProtectionDiffOperation {
-    Create(api::BranchProtection),
-    Update(String, api::BranchProtection, api::BranchProtection),
     Delete(String),
 }
 

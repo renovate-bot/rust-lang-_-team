@@ -416,7 +416,6 @@ impl GithubRead for GitHubApiRead {
         static QUERY: &str = r#"
             query($owner: String!, $name: String!) {
                 repository(owner: $owner, name: $name) {
-                    id
                     databaseId
                     autoMergeAllowed
                     description
@@ -435,8 +434,6 @@ impl GithubRead for GitHubApiRead {
         #[derive(serde::Deserialize)]
         #[serde(rename_all = "camelCase")]
         struct RepoResponse {
-            // Equivalent of `node_id` of the Rest API
-            id: String,
             // Equivalent of `id` of the Rest API
             database_id: u64,
             auto_merge_allowed: Option<bool>,
@@ -461,7 +458,6 @@ impl GithubRead for GitHubApiRead {
 
         let repo = result.and_then(|r| r.repository).map(|repo_response| Repo {
             repo_id: repo_response.database_id,
-            node_id: repo_response.id,
             name: repo.to_string(),
             description: repo_response.description.unwrap_or_default(),
             allow_auto_merge: repo_response.auto_merge_allowed,

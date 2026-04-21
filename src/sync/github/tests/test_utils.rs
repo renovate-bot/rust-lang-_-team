@@ -136,7 +136,6 @@ impl DataModel {
             org.repos.insert(
                 repo.name.clone(),
                 Repo {
-                    node_id: org.repos.len().to_string(),
                     repo_id: org.repos.len() as u64,
                     name: repo.name.clone(),
                     org: repo.org.clone(),
