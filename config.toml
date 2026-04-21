@@ -82,5 +82,3 @@ members-without-zulip-id = [
     "abibroom",
     "rust-timer",
 ]
-
-disable-rulesets-repos = []

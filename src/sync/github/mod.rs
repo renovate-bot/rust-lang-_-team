@@ -449,9 +449,9 @@ impl SyncGitHub {
     }
 
     /// Check if a repository should use rulesets instead of branch protections
-    fn should_use_rulesets(&self, repo: &rust_team_data::v1::Repo) -> bool {
-        let repo_full_name = format!("{}/{}", repo.org, repo.name);
-        !self.config.disable_rulesets_repos.contains(&repo_full_name)
+    fn should_use_rulesets(&self, _repo: &rust_team_data::v1::Repo) -> bool {
+        // TODO delete this function in the future since we don't need it anymore
+        true
     }
 
     async fn construct_ruleset(

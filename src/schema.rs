@@ -16,8 +16,6 @@ pub(crate) struct Config {
     // Use a BTreeSet for consistent ordering in tests
     special_org_members: BTreeSet<String>,
     members_without_zulip_id: BTreeSet<String>,
-    #[serde(default)]
-    disable_rulesets_repos: BTreeSet<String>,
 }
 
 impl Config {
@@ -47,10 +45,6 @@ impl Config {
 
     pub(crate) fn members_without_zulip_id(&self) -> &BTreeSet<String> {
         &self.members_without_zulip_id
-    }
-
-    pub(crate) fn disable_rulesets_repos(&self) -> &BTreeSet<String> {
-        &self.disable_rulesets_repos
     }
 }
 
