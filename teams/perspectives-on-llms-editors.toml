@@ -1,0 +1,15 @@
+name = "perspectives-on-llms-editors"
+subteam-of = "launching-pad"
+
+[people]
+leads = ["nikomatsakis", "oli-obk", "davidtwco"]
+members = []
+alumni = []
+
+[[github]]
+orgs = ["rust-lang"]
+
+[website]
+name = "Perspectives on LLMs editors"
+description = "Maintains the perspectives on LLMs repo"
+repo = "https://github.com/rust-lang/perspectives-on-llms/"
