@@ -60,8 +60,7 @@ impl GithubApp {
             278306 => Some(GithubApp::Bors),
             // Link for infra admins:
             // https://github.com/organizations/rust-lang/settings/apps/datadog-rust-lang
-            // TODO set the real value after updating triagebot: 3444461
-            1111111 => Some(GithubApp::Datadog),
+            3444461 => Some(GithubApp::Datadog),
             _ => None,
         }
     }
