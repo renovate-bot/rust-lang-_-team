@@ -1,0 +1,16 @@
+org = "rust-lang"
+name = "staging.crates.io-index-archive"
+description = "Archive of the staging.crates.io-index commit history after squashes"
+bots = []
+
+[access.teams]
+crates-io = "maintain"
+
+[[rulesets]]
+pattern = "snapshot-*"
+pr-required = false
+prevent-creation = false
+
+[[rulesets]]
+pattern = "main"
+pr-required = false
