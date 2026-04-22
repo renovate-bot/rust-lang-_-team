@@ -1,0 +1,11 @@
+org = "rust-lang"
+name = "perspectives-on-llms"
+description = "Rust project perspectives on LLMs"
+homepage = "https://rust-lang.github.io/perspectives-on-llms/index.html"
+bots = []
+
+[access.teams]
+perspectives-on-llms-editors = "write"
+
+[environments.github-pages]
+branches = ["main"]
