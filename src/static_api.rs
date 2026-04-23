@@ -7,7 +7,9 @@ use anyhow::{Context as _, Error, ensure};
 use indexmap::IndexMap;
 use log::info;
 use rust_team_data::v1;
-use rust_team_data::v1::{BranchProtectionMode, Crate, CrateTeamOwner, RepoMember};
+use rust_team_data::v1::{
+    BranchProtectionMode, Crate, CrateTeamOwner, GoogleWorkspace, RepoMember,
+};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -531,14 +533,18 @@ fn convert_teams<'a>(
 
         let leads = team.leads();
         let mut members = Vec::new();
-        for github_name in &team.members(data)? {
+        for github_name in team.members(data)? {
             if let Some(person) = data.person(github_name) {
                 members.push(v1::TeamMember {
                     name: person.name().into(),
                     github: (*github_name).into(),
                     github_id: person.github_id(),
                     is_lead: leads.contains(github_name),
-                    roles: website_roles.get(*github_name).cloned().unwrap_or_default(),
+                    roles: website_roles.get(github_name).cloned().unwrap_or_default(),
+                    google_workspace: person
+                        .google_workspace()
+                        .cloned()
+                        .map(GoogleWorkspace::from),
                 });
             }
         }
@@ -557,6 +563,10 @@ fn convert_teams<'a>(
                         .get(alum.github.as_str())
                         .cloned()
                         .unwrap_or_default(),
+                    google_workspace: person
+                        .google_workspace()
+                        .cloned()
+                        .map(GoogleWorkspace::from),
                 });
             }
         }
@@ -606,6 +616,7 @@ fn convert_teams<'a>(
                     description: role.description.clone(),
                 })
                 .collect(),
+            google_workspace_saml_group: team.google_workspace_saml_group(),
         };
         team_map.insert(team.name().into(), team_data);
     }

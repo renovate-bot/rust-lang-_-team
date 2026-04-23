@@ -76,13 +76,22 @@ pub(crate) struct Funding {
     github_sponsors: bool,
 }
 
-#[allow(dead_code)]
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub(crate) struct GoogleWorkspace {
-    first_name: String,
-    last_name: String,
-    account_handle: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub account_handle: String,
+}
+
+impl From<GoogleWorkspace> for rust_team_data::v1::GoogleWorkspace {
+    fn from(gws: GoogleWorkspace) -> Self {
+        rust_team_data::v1::GoogleWorkspace {
+            first_name: gws.first_name,
+            last_name: gws.last_name,
+            account_handle: gws.account_handle,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -157,8 +166,8 @@ impl Person {
         &self.permissions
     }
 
-    pub(crate) fn google_workspace(&self) -> &Option<GoogleWorkspace> {
-        &self.google_workspace
+    pub(crate) fn google_workspace(&self) -> Option<&GoogleWorkspace> {
+        self.google_workspace.as_ref()
     }
 
     pub(crate) fn validate(&self) -> Result<(), Error> {
@@ -194,7 +203,6 @@ impl std::fmt::Display for TeamKind {
     }
 }
 
-#[allow(dead_code)]
 #[derive(serde::Deserialize, Debug)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 pub(crate) struct Team {

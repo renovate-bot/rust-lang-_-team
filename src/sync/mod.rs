@@ -1,5 +1,6 @@
 mod crates_io;
 mod github;
+mod gws;
 mod mailgun;
 pub mod team_api;
 pub mod utils;
@@ -77,6 +78,9 @@ pub async fn run_sync_team(
                 if !only_print_plan {
                     diff.apply(&sync).await?;
                 }
+            }
+            "google-workspace" => {
+                println!("google-workspace: nothing to diff");
             }
             _ => panic!("unknown service: {service}"),
         }
