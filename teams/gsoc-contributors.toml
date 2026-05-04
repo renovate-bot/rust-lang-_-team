@@ -5,28 +5,19 @@ kind = "marker-team"
 [people]
 leads = []
 members = [
-    "Oneirical",
-    "FractalFir",
     "Sa4dUs",
-    "dawidl022",
-    "namanlp",
-    "zjp-CN",
-    "GlitchlessCode",
-    "madhav-madhusoodanan",
-    "Sakib25800",
-    "Shourya742",
     "lapla-cogito",
-    "LorrensP-2158466",
-    "CLIDragon",
-    "FranciscoTGouveia",
-    "mbyx",
-    "DriedYellowPeach",
-    "makai410",
-    "Pyr0de",
-    "secona",
-    # KMJ-007 is participating in LLVM GSoC 2025, but they are working on Rust related things
-    # Therefore, we include them here to give them access to the dev desktops
-    { github = "KMJ-007", roles = ["guest"] },
+    "Shourya742",
+    "sgasho",
+    "moabo3li",
+    "CoCo-Japan-pan",
+    "NONnonHere",
+    "dybucc",
+    "vishruth-thimmaiah",
+    "xonx4l",
+    "zedddie",
+    "Walnut356",
+    "Cloud0310"
 ]
 alumni = [
     "d-sonuga",
@@ -35,7 +26,24 @@ alumni = [
     "ding-young",
     "suaviloquence",
     "tiif",
-    "shannmu"
+    "shannmu",
+    "KMJ-007",
+    "Oneirical",
+    "FractalFir",
+    "dawidl022",
+    "namanlp",
+    "zjp-CN",
+    "GlitchlessCode",
+    "madhav-madhusoodanan",
+    "Sakib25800",
+    "LorrensP-2158466",
+    "CLIDragon",
+    "FranciscoTGouveia",
+    "mbyx",
+    "DriedYellowPeach",
+    "makai410",
+    "Pyr0de",
+    "secona",
 ]
 
 [permissions]
