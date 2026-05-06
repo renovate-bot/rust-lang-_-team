@@ -10,7 +10,13 @@ mod static_api;
 mod sync;
 mod validate;
 
-const AVAILABLE_SERVICES: &[&str] = &["github", "mailgun", "zulip", "crates-io"];
+const AVAILABLE_SERVICES: &[&str] = &[
+    "github",
+    "google-workspace",
+    "mailgun",
+    "zulip",
+    "crates-io",
+];
 
 const USER_AGENT: &str = "https://github.com/rust-lang/team (infra@rust-lang.org)";
 

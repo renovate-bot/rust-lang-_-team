@@ -287,6 +287,7 @@ impl From<TeamData> for v1::Team {
             github: (!gh_teams.is_empty()).then_some(TeamGitHub { teams: gh_teams }),
             website_data: None,
             roles: vec![],
+            google_workspace_saml_group: None,
         }
     }
 }

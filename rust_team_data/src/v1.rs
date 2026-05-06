@@ -26,6 +26,15 @@ pub struct Team {
     pub github: Option<TeamGitHub>,
     pub website_data: Option<TeamWebsite>,
     pub roles: Vec<MemberRole>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google_workspace_saml_group: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GoogleWorkspace {
+    pub first_name: String,
+    pub last_name: String,
+    pub account_handle: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -36,6 +45,8 @@ pub struct TeamMember {
     pub is_lead: bool,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub roles: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google_workspace: Option<GoogleWorkspace>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
